@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f2f0eb">
+  <title>คำนวณ BMI | ดัชนีมวลกาย</title>
+  <style>
+    :root {
+      --cream: #f2f0eb;
+      --surface: #fff;
+      --brand: #006241;
+      --action: #00754a;
+      --house: #1e3932;
+      --mint: #d4e9e2;
+      --ink: #222b26;
+      --muted: #525e57;
+      --line: #ddd9d1;
+      --focus: #00754a;
+      --error: #a82c23;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      line-height: 1.5;
+      color: var(--ink);
+      background: var(--cream);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: max(24px, env(safe-area-inset-top))
+               max(16px, env(safe-area-inset-right))
+               max(24px, env(safe-area-inset-bottom))
+               max(16px, env(safe-area-inset-left));
+    }
+    ::selection { color: var(--house); background: var(--mint); }
+    main { max-width: 570px; margin-inline: auto; }
+    .intro { margin-bottom: 20px; }
+    h1 { margin: 0; color: var(--brand); font-size: clamp(2rem, 6vw, 3rem); font-weight: 700; line-height: 1.2; }
+    .intro p { margin: 4px 0 0; color: var(--muted); }
+    .layout, .outcome { display: grid; gap: 16px; align-items: start; }
+    .panel { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+    .measurements { padding: 16px; }
+    h2 { font-size: 1.15rem; margin: 0 0 12px; }
+    .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .field label, legend { display: block; margin: 0 0 6px; font-weight: 600; }
+    .input-wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border: 1px solid #8d958f; border-radius: 8px; }
+    .input-wrap:focus-within { border-color: var(--action); outline: 2px solid var(--focus); outline-offset: 2px; }
+    input[type=number] {
+      width: 100%;
+      min-height: 50px;
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 0 8px 12px;
+      appearance: textfield;
+      font: inherit;
+      color: var(--ink);
+      caret-color: var(--brand);
+      background: transparent;
+    }
+    input[type=number]::-webkit-inner-spin-button { appearance: none; }
+    input[type=number]:focus { outline: none; }
+    input::placeholder { color: var(--muted); opacity: 1; }
+    .unit { padding-inline: 5px 10px; color: var(--muted); font-size: .875rem; white-space: nowrap; pointer-events: none; }
+    button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+    .input-wrap:has([aria-invalid=true]) { border-color: var(--error); background: #fbefed; }
+    .error { margin: 6px 0 0; color: var(--error); font-size: .875rem; }
+    .actions { display: flex; gap: 8px; margin-top: 16px; }
+    button {
+      min-height: 48px;
+      border: 1px solid var(--action);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    button, .segmented label, .reference summary { -webkit-tap-highlight-color: transparent; }
+    button:active { filter: brightness(.9); }
+    .calculate { flex: 1; color: #fff; background: var(--action); }
+    .reset { color: var(--brand); background: var(--surface); }
+    @media (hover: hover) {
+      .calculate:hover { background: var(--brand); }
+      .reset:hover { background: var(--mint); }
+    }
+    fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+    .segmented { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 999px; background: #e7e3dc; }
+    .segmented label {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 44px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      color: var(--house);
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+    }
+    .segmented input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+    .segmented label:has(:checked) { background: var(--mint); box-shadow: inset 0 0 0 1px #8fb5a6; }
+    .segmented label:has(:focus-visible) { outline: 2px solid var(--focus); outline-offset: 1px; }
+    .segmented label:active, .reference summary:active { background: var(--mint); }
+    .result {
+      --category-color: #c3efd6;
+      min-width: 0;
+      padding: 20px;
+      border-radius: 12px;
+      color: #fff;
+      background: var(--house);
+      scroll-margin-block: 12px;
+    }
+    .result p { margin: 0; }
+    .result-label { color: #c6e2d6; font-size: .88rem; }
+    .result .empty { margin-top: 12px; color: #f2fcf7; font-size: 1.05rem; }
+    .result-line { display: flex; align-items: center; flex-wrap: wrap; column-gap: 12px; row-gap: 6px; margin-top: 4px; }
+    .measurement { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
+    .number { font-size: clamp(3rem, 9vw, 4.25rem); font-weight: 750; font-variant-numeric: tabular-nums; line-height: 1.08; letter-spacing: -.03em; overflow-wrap: anywhere; }
+    .unit-result { color: #d0e9dc; font-size: .85rem; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 11px;
+      border: 1px solid #ffffff32;
+      border-radius: 999px;
+      color: #fff;
+      background: #2b5148;
+      font-size: .9rem;
+      font-weight: 700;
+    }
+    .status::before { content: ""; width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--category-color); }
+    .result .result-detail { margin-top: 9px; color: #e1f3e9; font-size: .88rem; line-height: 1.55; }
+    .result .rounding-note { margin-top: 6px; color: #c6e2d6; font-size: .8rem; }
+    .scale { position: relative; padding-top: 22px; margin-top: 13px; }
+    .scale-track { display: flex; }
+    .scale-segment { flex: 1; min-width: 0; height: 14px; border-inline: 2px solid transparent; border-radius: 7px; background: var(--color) padding-box; }
+    .scale-segment.active { height: 16px; margin-block: -1px; box-shadow: inset 0 0 0 2px #fffe; }
+    .scale-marker {
+      position: absolute;
+      top: 2px;
+      left: var(--position, 50%);
+      width: 14px;
+      height: 16px;
+      translate: -50%;
+      background: #fff;
+      clip-path: polygon(0 0, 100% 0, 100% 45%, 50% 100%, 0 45%);
+    }
+    .scale-labels { display: flex; justify-content: space-between; gap: 12px; margin-top: 7px; padding-inline: 2px; font-size: .74rem; color: #d0e9dc; }
+    .reference summary { min-height: 48px; padding: 12px 16px; border-radius: 12px; color: var(--brand); font-weight: 650; cursor: pointer; touch-action: manipulation; }
+    .reference summary::marker { color: var(--brand); }
+    .reference-content { padding: 0 12px 12px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: .88rem; }
+    th, td { padding: 9px 6px; border-bottom: 1px solid var(--cream); }
+    th { color: var(--muted); font-size: .83rem; font-weight: 600; }
+    td:last-child, th:last-child { text-align: right; }
+    tr.current td { color: var(--house); font-weight: 700; background: color-mix(in srgb, var(--color) 15%, white); }
+    .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--color); margin-right: 8px; }
+    .footer { max-width: 68ch; margin-top: 18px; color: var(--muted); font-size: .85rem; }
+    .footer p { margin: 6px 0; }
+    a { color: var(--brand); text-underline-offset: 3px; }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    [hidden] { display: none !important; }
+    @media (max-width: 300px) { .fields { grid-template-columns: 1fr; } }
+    @media (min-width: 800px) {
+      body { padding-block: 48px; }
+      main { max-width: 960px; }
+      .intro { margin-bottom: 24px; }
+      .layout { grid-template-columns: minmax(0, 4fr) minmax(0, 5fr); gap: 24px; }
+      .measurements, .result { padding: 24px; }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      button { transition: scale .15s ease-out; }
+      button:active { scale: .96; }
+      #result-content { animation: result-in .32s ease-out both; }
+      .scale-marker { transition: left .45s cubic-bezier(.22, 1, .36, 1); animation: marker-in .42s ease-out both; }
+      .scale-segment.active { animation: segment-in .42s ease-out; }
+    }
+    @keyframes result-in { from { opacity: .4; translate: 0 5px; } to { opacity: 1; translate: 0; } }
+    @keyframes marker-in { from { opacity: 0; translate: -50% -8px; } to { opacity: 1; translate: -50% 0; } }
+    @keyframes segment-in { from { box-shadow: inset 0 0 0 0 #fff0; } to { box-shadow: inset 0 0 0 2px #fffe; } }
+  </style>
+</head>
+<body>
+<main>
+  <header class="intro">
+    <h1>คำนวณ BMI</h1>
+    <p>ดัชนีมวลกายสำหรับผู้ใหญ่</p>
+  </header>
+  <div class="layout">
+    <section class="panel measurements" aria-labelledby="measurements-heading">
+      <h2 id="measurements-heading">น้ำหนักและส่วนสูง</h2>
+      <form id="bmi-form" novalidate>
+        <div class="fields">
+          <div class="field">
+            <label for="weight">น้ำหนัก<span class="visually-hidden"> (กิโลกรัม)</span></label>
+            <div class="input-wrap">
+              <input id="weight" type="number" inputmode="decimal" min="0" step="any" placeholder="เช่น 60" aria-describedby="weight-error" required>
+              <span class="unit" aria-hidden="true">กก.</span>
+            </div>
+            <p id="weight-error" class="error" hidden>กรอกน้ำหนักให้มากกว่า 0</p>
+          </div>
+          <div class="field">
+            <label for="height">ส่วนสูง<span class="visually-hidden"> (เซนติเมตร)</span></label>
+            <div class="input-wrap">
+              <input id="height" type="number" inputmode="decimal" enterkeyhint="done" min="0" step="any" placeholder="เช่น 165" aria-describedby="height-error" required>
+              <span class="unit" aria-hidden="true">ซม.</span>
+            </div>
+            <p id="height-error" class="error" hidden>กรอกส่วนสูงให้มากกว่า 0</p>
+          </div>
+        </div>
+        <p id="calculation-error" class="error" role="alert" hidden>ไม่สามารถคำนวณได้ กรุณาตรวจสอบตัวเลขอีกครั้ง</p>
+        <div class="actions"><button class="calculate" type="submit">คำนวณ BMI</button><button class="reset" type="reset">ล้างค่า</button></div>
+      </form>
+    </section>
+    <section class="outcome" aria-label="ผลการประเมิน BMI">
+      <fieldset>
+        <legend>เกณฑ์แปลผล</legend>
+        <div class="segmented">
+          <label><input type="radio" name="standard" value="asia" checked>เกณฑ์เอเชีย</label>
+          <label><input type="radio" name="standard" value="who">เกณฑ์ WHO</label>
+        </div>
+      </fieldset>
+      <div class="result" id="result-card">
+        <div aria-live="polite" aria-atomic="true">
+          <p class="result-label">ค่าดัชนีมวลกายของคุณ</p>
+          <p id="empty-result" class="empty">กรอกข้อมูลแล้วกดคำนวณเพื่อดูผล</p>
+          <div id="result-content" hidden>
+            <div class="result-line">
+              <div class="measurement"><span id="bmi-value" class="number"></span><span class="unit-result">กก./ม²</span></div>
+              <span id="bmi-status" class="status"></span>
+            </div>
+            <p id="result-detail" class="result-detail"></p>
+            <p id="rounding-note" class="rounding-note" hidden>จัดกลุ่มตามค่า BMI ก่อนปัดเศษ</p>
+          </div>
+        </div>
+        <div class="scale" aria-hidden="true">
+          <span id="scale-marker" class="scale-marker" hidden></span>
+          <div id="scale" class="scale-track"></div>
+          <div class="scale-labels"><span>BMI ต่ำ</span><span>BMI สูง</span></div>
+        </div>
+      </div>
+      <details class="panel reference">
+        <summary>ตารางแปลผล BMI</summary>
+        <div class="reference-content">
+          <table>
+            <thead><tr><th scope="col">ผลการประเมิน</th><th scope="col">BMI (กก./ม²)</th></tr></thead>
+            <tbody id="ranges"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+  </div>
+  <footer class="footer">
+    <p>ผลลัพธ์นี้เป็นการประเมินเบื้องต้นสำหรับผู้ใหญ่ BMI อาจแปลผลได้จำกัดในเด็ก หญิงตั้งครรภ์ และผู้ที่มีกล้ามเนื้อมาก</p>
+    <p>แหล่งข้อมูล <a href="https://hp.anamai.moph.go.th/web-upload/4xceb3b571ddb70741ad132d75876bc41d/tinymce/opdc/opdc2563-s/idc2_2-1/opdc_2563_idc2-2-1_49.pdf">กรมอนามัย</a> · <a href="https://apps.who.int/nutrition/landscape/help.aspx?helpid=420">องค์การอนามัยโลก (WHO)</a></p>
+  </footer>
+</main>
+<script>
+  const standards = {
+    asia: [
+      { max: 18.5, label: "น้ำหนักต่ำกว่าเกณฑ์", range: "ต่ำกว่า 18.5", color: "#1a9cdb" },
+      { max: 23, label: "ปกติ", range: "18.5 ถึงต่ำกว่า 23", color: "#1eaf66" },
+      { max: 25, label: "น้ำหนักเกิน", range: "23 ถึงต่ำกว่า 25", color: "#f5c12c" },
+      { max: 30, label: "อ้วนระดับ 1", range: "25 ถึงต่ำกว่า 30", color: "#f28a31" },
+      { max: Infinity, label: "อ้วนระดับ 2", range: "ตั้งแต่ 30", color: "#df5159" }
+    ],
+    who: [
+      { max: 18.5, label: "น้ำหนักต่ำกว่าเกณฑ์", range: "ต่ำกว่า 18.5", color: "#1a9cdb" },
+      { max: 25, label: "ปกติ", range: "18.5 ถึงต่ำกว่า 25", color: "#1eaf66" },
+      { max: 30, label: "น้ำหนักเกิน", range: "25 ถึงต่ำกว่า 30", color: "#f5c12c" },
+      { max: 35, label: "อ้วนระดับ 1", range: "30 ถึงต่ำกว่า 35", color: "#f28a31" },
+      { max: 40, label: "อ้วนระดับ 2", range: "35 ถึงต่ำกว่า 40", color: "#df5159" },
+      { max: Infinity, label: "อ้วนระดับ 3", range: "ตั้งแต่ 40", color: "#ad3f71" }
+    ]
+  };
+  const form = document.querySelector("#bmi-form");
+  const weight = document.querySelector("#weight");
+  const height = document.querySelector("#height");
+  const resultCard = document.querySelector("#result-card");
+  const emptyResult = document.querySelector("#empty-result");
+  const resultContent = document.querySelector("#result-content");
+  const bmiValue = document.querySelector("#bmi-value");
+  const bmiStatus = document.querySelector("#bmi-status");
+  const resultDetail = document.querySelector("#result-detail");
+  const roundingNote = document.querySelector("#rounding-note");
+  const calculationError = document.querySelector("#calculation-error");
+  const ranges = document.querySelector("#ranges");
+  const scale = document.querySelector("#scale");
+  const scaleMarker = document.querySelector("#scale-marker");
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const touchScreen = matchMedia("(pointer: coarse)");
+  let result = null;
+
+  function render() {
+    const standard = document.querySelector('input[name="standard"]:checked').value;
+    const categories = standards[standard];
+    const selected = result === null ? -1 : categories.findIndex(category => result < category.max);
+    ranges.replaceChildren();
+    scale.replaceChildren();
+
+    categories.forEach((category, index) => {
+      const row = document.createElement("tr");
+      const isCurrent = index === selected;
+      row.style.setProperty("--color", category.color);
+      if (isCurrent) {
+        row.className = "current";
+        row.setAttribute("aria-current", "true");
+      }
+      const name = document.createElement("td");
+      const dot = document.createElement("span");
+      dot.className = "swatch";
+      dot.setAttribute("aria-hidden", "true");
+      name.append(dot, category.label);
+      const interval = document.createElement("td");
+      interval.textContent = category.range;
+      row.append(name, interval);
+      ranges.append(row);
+
+      const segment = document.createElement("span");
+      segment.className = "scale-segment";
+      segment.style.setProperty("--color", category.color);
+      if (isCurrent) segment.classList.add("active");
+      scale.append(segment);
+    });
+
+    emptyResult.hidden = result !== null;
+    resultContent.hidden = result === null;
+    scaleMarker.hidden = result === null;
+    if (result === null) return;
+
+    const category = categories[selected];
+    const displayedValue = result.toFixed(1);
+    bmiValue.textContent = displayedValue;
+    bmiStatus.textContent = category.label;
+    resultDetail.textContent = "ช่วง " + category.range + " กก./ม² · " + (standard === "asia" ? "เกณฑ์เอเชีย" : "เกณฑ์ WHO");
+    roundingNote.hidden = Number(displayedValue) < category.max;
+    resultCard.style.setProperty("--category-color", category.color);
+    scaleMarker.style.setProperty("--position", ((selected + .5) / categories.length * 100) + "%");
+  }
+
+  function validate(input) {
+    const value = input.valueAsNumber;
+    const valid = Number.isFinite(value) && value > 0;
+    input.setAttribute("aria-invalid", String(!valid));
+    document.querySelector("#" + input.id + "-error").hidden = valid;
+    return valid;
+  }
+
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    const validWeight = validate(weight);
+    const validHeight = validate(height);
+    calculationError.hidden = true;
+    if (!validWeight || !validHeight) {
+      result = null;
+      render();
+      (validWeight ? height : weight).focus();
+      return;
+    }
+    const centimetres = height.valueAsNumber;
+    const squareCentimetres = centimetres ** 2;
+    const squareMetres = Number.isFinite(squareCentimetres) ? squareCentimetres / 10_000 : (centimetres / 100) ** 2;
+    const value = weight.valueAsNumber / squareMetres;
+    if (!Number.isFinite(value) || value <= 0) {
+      result = null;
+      calculationError.hidden = false;
+    } else {
+      result = value;
+    }
+    render();
+    if (result === null) return;
+    const focused = document.activeElement;
+    if (touchScreen.matches && (focused === weight || focused === height)) focused.blur();
+
+    const viewport = window.visualViewport;
+    const visibleTop = viewport?.offsetTop ?? 0;
+    const visibleBottom = visibleTop + (viewport?.height ?? window.innerHeight);
+    const bounds = resultCard.getBoundingClientRect();
+    if (bounds.top < visibleTop || bounds.bottom > visibleBottom) {
+      resultCard.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "instant" : "smooth" });
+    }
+  });
+
+  for (const input of [weight, height]) {
+    input.addEventListener("input", () => {
+      input.removeAttribute("aria-invalid");
+      document.querySelector("#" + input.id + "-error").hidden = true;
+      calculationError.hidden = true;
+      if (result !== null) {
+        result = null;
+        render();
+      }
+    });
+  }
+  document.querySelectorAll('input[name="standard"]').forEach(input => input.addEventListener("change", render));
+  form.addEventListener("reset", () => {
+    result = null;
+    calculationError.hidden = true;
+    for (const input of [weight, height]) {
+      input.removeAttribute("aria-invalid");
+      document.querySelector("#" + input.id + "-error").hidden = true;
+    }
+    render();
+  });
+  render();
+</script>
+</body>
+</html>
